@@ -1,4 +1,4 @@
-name = Custom Language Detection
+name = Custom Language Detector
 core = "7.x"
 package = Custom modules by Klimp
 
