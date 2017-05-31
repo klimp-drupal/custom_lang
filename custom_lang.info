@@ -1,0 +1,6 @@
+name = Custom Language Detection
+core = "7.x"
+package = Custom modules by Klimp
+
+dependencies[] = locale
+dependencies[] = lang_dropdown

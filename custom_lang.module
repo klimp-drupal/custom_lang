@@ -1,0 +1,148 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function custom_lang_menu() {
+  $items = array();
+
+  $items['admin/config/regional/custom_lang'] = array(
+    'title' => 'Language prefix by country settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('custom_lang_settings_form'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'includes/custom_lang.admin.inc',
+  );
+  $items['admin/config/regional/custom_lang/settings'] = array(
+    'title' => 'Settings',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0,
+  );
+  $items['admin/config/regional/custom_lang/test'] = array(
+    'title' => 'Test with IP',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('custom_lang_ip_test_form'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function custom_lang_theme($existing, $type, $theme, $path) {
+  return array(
+    'custom_lang_tabular_form' => array(
+      'render element' => 'form',
+    ),
+  );
+}
+
+/**
+ * Implements hook_block_view_alter().
+ */
+function custom_lang_block_view_alter(&$data, $block) {
+  if ($block->module == 'lang_dropdown') {
+    if (!isset($_COOKIE["custom_lang"])) {
+      $ip = ip_address();
+      custom_lang_set_lang($ip);
+    }
+  }
+}
+
+function custom_lang_ip_test_form($form, &$form_state) {
+  $form['ip'] = array(
+    '#type' => 'textfield',
+    '#title' => t('IP address'),
+    '#attributes' => array('autocomplete' => 'off'),
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Test'),
+  );
+  return $form;
+}
+
+function custom_lang_ip_test_form_submit($form, &$form_state) {
+  if (!empty($form_state['values']['ip'])) {
+    $ip = $form_state['values']['ip'];
+    custom_lang_set_lang($ip);
+  }
+}
+
+function custom_lang_set_lang($ip) {
+  $url = 'http://ip-api.com/json/';
+  $response = drupal_http_request($url . $ip);
+
+  if ($response->code == 200) {
+    $data = json_decode($response->data);
+
+    //Get module settings
+    $custom_lang_settings = variable_get('custom_lang_settings', FALSE);
+    if ($custom_lang_settings) {
+      if (isset($custom_lang_settings[$data->countryCode])) {
+        //Country settings
+        $country_settings = $custom_lang_settings[$data->countryCode];
+
+        $langs = language_list('enabled');
+
+        $country_lang = FALSE;
+        //If there is more then one language attached to one country
+        if (count($country_settings) > 1) {
+
+          $matches = array();
+          if (preg_match_all('@(?<=[, ]|^)([a-zA-Z-]+|\*)(?:;q=([0-9.]+))?(?:$|\s*,\s*)@', trim($_SERVER['HTTP_ACCEPT_LANGUAGE']), $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+              $http_lang = drupal_strtolower($match[1]);
+              break;
+            }
+          }
+
+          //Compare http language codes from settings with server variable
+          foreach ($country_settings as $lang_code => $http_lang_codes) {
+            $http_lang_codes = explode(',', $http_lang_codes);
+            $http_lang_codes = array_map('trim', $http_lang_codes);
+            if (in_array($http_lang, $http_lang_codes)) {
+              $country_lang = $lang_code;
+              break;
+            }
+          }
+        }
+        elseif (count($country_settings) == 1) {
+          $country_lang = key($country_settings);
+        }
+
+        if ($country_lang) {
+          if (isset($langs[1][$country_lang])) {
+            $path = current_path();
+            $lang = $langs[1][$country_lang];
+            setcookie("custom_lang", 1);
+            drupal_goto($path, array(
+                'language' => $lang,
+              ));
+          }
+        }
+      }
+    }
+  }
+}
+
+function theme_tabular_form1($vars) {
+  $form = $vars['form'];
+  $rows = array();
+ 
+  foreach (element_children($form['data']) as $key) {
+    foreach (element_children($form['data'][$key]) as $name) {
+      $rows[$key][] = drupal_render($form['data'][$key][$name]);
+    }
+  }
+ 
+  return theme('table', array(
+    'header' => $form['header']['#value'],
+    'rows' => $rows,
+    'caption' => $form['#title']
+  ));
+}
