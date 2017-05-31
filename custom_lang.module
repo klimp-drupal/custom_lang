@@ -54,10 +54,13 @@ function custom_lang_theme($existing, $type, $theme, $path) {
  */
 function custom_lang_block_view_alter(&$data, $block) {
   if ($block->module == 'lang_dropdown') {
-    if (!isset($_COOKIE['Drupal.visitor.custom_lang'])) {
+    if (!isset($_COOKIE['Drupal_visitor_custom_lang'])) {
       $ip = ip_address();
-      module_load_include('inc', 'custom_lang', 'includes/custom_lang.helper');
-      custom_lang_set_lang($ip);
+      $ip = '31.23.193.201';
+      if ($ip != '127.0.0.1') {
+        module_load_include('inc', 'custom_lang', 'includes/custom_lang.helper');
+        custom_lang_set_lang($ip);
+      }
     }
   }
 }

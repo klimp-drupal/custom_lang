@@ -14,6 +14,12 @@
  * @see ip_address()
  */
 function custom_lang_set_lang($ip) {
+  $country_lang_flag = &drupal_static(__FUNCTION__);
+  if ($country_lang_flag) {
+
+    return FALSE;
+  }
+
   $url = 'http://ip-api.com/json/';
   $response = drupal_http_request($url . $ip);
 
@@ -35,6 +41,8 @@ function custom_lang_set_lang($ip) {
 
           $http_lang= '';
           $matches = array();
+
+          // Determine user preferred language by browser variable.
           if (preg_match_all('@(?<=[, ]|^)([a-zA-Z-]+|\*)(?:;q=([0-9.]+))?(?:$|\s*,\s*)@', trim($_SERVER['HTTP_ACCEPT_LANGUAGE']), $matches, PREG_SET_ORDER)) {
             foreach ($matches as $match) {
               $http_lang = drupal_strtolower($match[1]);
@@ -65,6 +73,7 @@ function custom_lang_set_lang($ip) {
             user_cookie_save(array(
               'custom_lang' => TRUE,
             ));
+            $country_lang_flag = TRUE;
             drupal_goto($path, array(
               'language' => $lang,
             ));
